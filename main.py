@@ -38,7 +38,7 @@ def main():
         return 1
 
     from forge.server import run
-    server, _ctx = run("127.0.0.1", 0)
+    server, _ctx = run("0.0.0.0", 0)
     port = server.server_address[1]
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
