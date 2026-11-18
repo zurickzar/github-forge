@@ -29,13 +29,25 @@ class Context:
 
 
 class ForgeServer(ThreadingHTTPServer):
+    # Dual-stack: one IPv6 socket accepts both IPv6 and IPv4-mapped IPv4
+    # (the evaluator dials back to the register peer address, which may be
+    # IPv6; an IPv4-only socket would refuse it). IPV6_V6ONLY=0 below.
+    address_family = socket.AF_INET6
     # 50 concurrent clones arrive at once; the default listen backlog (5)
     # drops SYNs and the client waits out ~1 s retransmit timers.
     request_queue_size = 128
     daemon_threads = True
 
+    def server_bind(self):
+        # Accept IPv4-mapped IPv6 connections too (dual-stack).
+        try:
+            self.socket.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+        except OSError:
+            pass
+        super().server_bind()
 
-def make_server(ctx, host="127.0.0.1", port=0):
+
+def make_server(ctx, host="::", port=0):
     class Handler(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
         server_version = "github-forge/1.0"
@@ -163,7 +175,7 @@ def make_server(ctx, host="127.0.0.1", port=0):
     return ForgeServer((host, port), Handler)
 
 
-def run(host="127.0.0.1", port=0):
+def run(host="::", port=0):
     token = os.environ.get("MAKEFUN_SHOP_TOKEN", "")
     ctx = Context(Forge(), token)
     server = make_server(ctx, host, port)
